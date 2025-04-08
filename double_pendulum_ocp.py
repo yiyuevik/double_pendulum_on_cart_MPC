@@ -11,7 +11,7 @@ import config  # 引用 config.py
 import scipy.linalg
 
 # 导入 CartPole 模型
-from cartpole_model import export_cartpole_ode_model
+from double_pendulum_model import export_cartpole_ode_model
 
 def clear_solver_state(ocp_solver, N_horizon):
     # 清空状态和控制输入
@@ -69,12 +69,12 @@ def create_ocp_solver(x0):
     # ocp.cost.yref[4] = 4*np.pi
     # 终端成本
     ocp.cost.cost_type_e = 'NONLINEAR_LS'
-    # ocp.model.cost_y_expr_e = ca.vertcat(model.x[0],  # x (位置)
-    #                          model.x[1],  # xdot (速度)
-    #                          np.sin(model.x[2]/2)**2,  # cos(theta1)
-    #                          model.x[3],  # omega1
-    #                          np.sin(model.x[4]/2)**2,  # cos(theta2)
-    #                          model.x[5])  # omega2
+    ocp.model.cost_y_expr_e = ca.vertcat(model.x[0],  # x (位置)
+                             model.x[1],  # xdot (速度)
+                             np.sin(model.x[2]/2)**2,  # cos(theta1)
+                             model.x[3],  # omega1
+                             np.sin(model.x[4]/2)**2,  # cos(theta2)
+                             model.x[5])  # omega2
     # ocp.model.cost_y_expr_e =  ca.vertcat(model.x)
     ocp.cost.W_e = config.P
 

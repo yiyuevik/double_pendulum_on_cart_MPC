@@ -6,7 +6,7 @@ config.py
 """
 import  numpy as np
 
-Horizon = 250          # 预测步数
+Horizon = 128          # 预测步数
 Ts = 0.01              # 采样时间
 Num_State = 6         # 6个状态（包括两个摆杆的角度和角速度）
 Num_Input = 1         # 控制量维数（推力）
@@ -37,11 +37,11 @@ def GenerateRandomInitialGuess(min_random=-6000.0, max_random=6000.0):
     """
     u_ini_guess = np.random.uniform(min_random, max_random, 1)[0]
     if u_ini_guess >= 0:
-        x_ini_guess =  np.zeros(8)
+        x_ini_guess =  np.zeros(6)
         x_ini_guess[2] = 2 * np.pi
         x_ini_guess[4] = 2 * np.pi
         # x_ini_guess[0] = 5
     else:
-        x_ini_guess = np.zeros(8)
+        x_ini_guess = np.zeros(6)
         # x_ini_guess[0] = -5
     return u_ini_guess, x_ini_guess

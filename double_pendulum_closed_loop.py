@@ -7,8 +7,8 @@ cartpole_closed_loop.py
 
 
 import config
-from cartpole_ocp import create_ocp_solver, simulate_closed_loop  
-from cartpole_utils import plot_cartpole_trajectories, animate_cartpole
+from double_pendulum_ocp import create_ocp_solver, simulate_closed_loop  
+from double_pendulum_utils import plot_cartpole_trajectories, animate_cartpole
 import time
 import matplotlib.pyplot as plt
 import numpy as np
