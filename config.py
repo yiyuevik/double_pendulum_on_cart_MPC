@@ -15,20 +15,19 @@ Fmax = 6000
 # 状态和控制量的权重矩阵
 Q = np.diag([1,    # x
              1,    # xdot
-             1,    # theta1
+             1000,    # theta1
              1,    # omega1
-             1,    # theta2
+             1000,    # theta2
              1])   # omega2
 
 R = 0.001             # 控制量的权重
 
 P = np.diag([1,    # x
              1,    # xdot
-             1,    # theta1
+             100,    # theta1
              1,    # omega1
-             1,    # theta2
-             1,
-             ])   # omega2
+             100,    # theta2
+             1, ])   # omega2
 
 def GenerateRandomInitialGuess(min_random=-6000.0, max_random=6000.0):
     """

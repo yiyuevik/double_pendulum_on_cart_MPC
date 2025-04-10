@@ -17,7 +17,7 @@ def main():
 
     # 2) 生成初始状态样本
 
-    x0 = np.array([0, 0, 2*np.pi,0, 2*np.pi, 0])
+    x0 = np.array([0, 0, np.pi, 0, np.pi, 0])
     # 4) 闭环仿真
     N_sim = 120  # 模拟步数
     all_simX = np.zeros((N_sim+1,config.Num_State,10))
@@ -41,7 +41,7 @@ def main():
         # 5) 绘制曲线
         # plot_cartpole_trajectories(t, simX, simU)
         # 6) 动画
-        animate_cartpole(t, simX, interval=50)
+        # animate_cartpole(t, simX, interval=50)
 
     print("all_time: ", np.sum(all_time))
     print("time/turn: ", np.sum(all_time)/(N_sim*sim_round))

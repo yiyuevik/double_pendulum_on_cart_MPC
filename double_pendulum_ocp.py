@@ -56,31 +56,29 @@ def create_ocp_solver(x0):
     
     ocp.model.cost_y_expr = ca.vertcat(model.x[0],  # x (位置)
                              model.x[1],  # xdot (速度)
-                             np.sin(model.x[2]/2)**2,  # theta1
+                             np.sin(model.x[2]/2),  # theta1
                              model.x[3],  # omega1
-                             np.sin(model.x[4]/2)**2,  # theta2
+                             np.sin(model.x[4]/2), # theta2
                              model.x[5], # omega2
                              model.u) 
     # ocp.model.cost_y_expr =  ca.vertcat(model.x, model.u)
     ocp.cost.W = scipy.linalg.block_diag(config.Q, config.R)
 
     ocp.cost.yref = np.zeros(Nx + Nu)  # (6维)
-    # ocp.cost.yref[2] = 4*np.pi
-    # ocp.cost.yref[4] = 4*np.pi
+
     # 终端成本
     ocp.cost.cost_type_e = 'NONLINEAR_LS'
     ocp.model.cost_y_expr_e = ca.vertcat(model.x[0],  # x (位置)
                              model.x[1],  # xdot (速度)
-                             np.sin(model.x[2]/2)**2,  # cos(theta1)
+                             np.sin(model.x[2]/2),  # cos(theta1)
                              model.x[3],  # omega1
-                             np.sin(model.x[4]/2)**2,  # cos(theta2)
+                             np.sin(model.x[4]/2),  # cos(theta2)
                              model.x[5])  # omega2
     # ocp.model.cost_y_expr_e =  ca.vertcat(model.x)
     ocp.cost.W_e = config.P
 
     ocp.cost.yref_e = np.zeros(Nx)     # (5维)
-    # ocp.cost.yref_e[2] = 4*np.pi
-    # ocp.cost.yref_e[4] = 4*np.pi
+    
     # 约束条件
     ocp.constraints.x0 = x0
     # ocp.constraints.lbu = np.array([-config.Fmax])
@@ -95,7 +93,7 @@ def create_ocp_solver(x0):
     ocp.solver_options.hessian_approx = 'GAUSS_NEWTON'
     ocp.solver_options.integrator_type = 'IRK'
     ocp.solver_options.nlp_solver_type = 'SQP'
-    ocp.solver_options.nlp_solver_max_iter = 2400
+    ocp.solver_options.nlp_solver_max_iter = 400
     # ocp.solver_options.globalization = 'MERIT_BACKTRACKING'
 
     # 构造 OCP 求解器
@@ -115,22 +113,24 @@ def simulate_closed_loop(ocp, ocp_solver, integrator, x0, N_sim=50):
     simX = np.zeros((N_sim+1, nx))
     simU = np.zeros((N_sim, nu))
     simX[0, :] = x0  # 初始化状态为传入的 x0
-    clear_solver_state(ocp_solver, config.Horizon)
+    # clear_solver_state(ocp_solver, config.Horizon)
     # 闭环仿真
     u_guess, x_guess = config.GenerateRandomInitialGuess()
     u0 = 1e3 * np.random.rand(config.Horizon)
     # 初次initial guess设置
     for j in range(0,config.Horizon,20):
-        ocp_solver.set(j, "u", u0[j])
-        # ocp_solver.set(j, "x", x_guess)
+        # ocp_solver.set(j, "u", -u0[j])
+        ocp_solver.set(j, "x", x_guess)
+    ocp_solver.set(0, "x", x0)
     # print("X_guess", x_guess)
-    # print("U_guess", u_guess)
     for i in range(N_sim):
         u_opt = ocp_solver.solve_for_x0(x0_bar = simX[i, :])
         #设置下一个sim的初始猜测
         # print(i)
+        # print(ocp_solver.get_cost())
         u_guess, x_guess = get_guess_from_solver_result(ocp_solver, config.Horizon)
         clear_solver_state(ocp_solver, config.Horizon) #按道理不太需要
+        
         for j in range(config.Horizon):
             ocp_solver.set(j, "u", u_guess[j])
             ocp_solver.set(j, "x", x_guess[:, j])
@@ -143,7 +143,7 @@ def simulate_closed_loop(ocp, ocp_solver, integrator, x0, N_sim=50):
         simX[i+1, :] = x_next
         # print("i:",i,"x:",x_next)
 
-    print("x_final:", simX[-1,:])
+    # print("x_final:", simX[-1,:])
     
     t = np.linspace(0, N_sim*config.Ts, N_sim+1)
     return t, simX, simU
