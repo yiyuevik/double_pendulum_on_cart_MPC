@@ -9,7 +9,7 @@ import casadi as ca
 from acados_template import AcadosOcp, AcadosOcpSolver, AcadosSimSolver
 import config  # 引用 config.py
 import scipy.linalg
-
+import time
 # 导入 CartPole 模型
 from double_pendulum_model import export_cartpole_ode_model
 
@@ -81,11 +81,11 @@ def create_ocp_solver(x0):
     
     # 约束条件
     ocp.constraints.x0 = x0
-    # ocp.constraints.lbu = np.array([-config.Fmax])
-    # ocp.constraints.ubu = np.array([+config.Fmax])
+    ocp.constraints.lbu = np.array([-config.Fmax])
+    ocp.constraints.ubu = np.array([+config.Fmax])
     # ocp.constraints.ubx = np.array([20])
     # ocp.constraints.lbx = np.array([-20])
-    # ocp.constraints.idxbu = np.array([0])  # 控制量u只有1维
+    ocp.constraints.idxbu = np.array([0])  # 控制量u只有1维
     # ocp.constraints.idxbx = np.array([0])
 
     # 求解器设置
@@ -94,6 +94,7 @@ def create_ocp_solver(x0):
     ocp.solver_options.integrator_type = 'IRK'
     ocp.solver_options.nlp_solver_type = 'SQP'
     ocp.solver_options.nlp_solver_max_iter = 400
+    ocp.solver_options.nlp_solver_tol_stat = 5e-3
     # ocp.solver_options.globalization = 'MERIT_BACKTRACKING'
 
     # 构造 OCP 求解器
@@ -104,7 +105,7 @@ def create_ocp_solver(x0):
     return ocp, acados_solver, acados_integrator
 
 
-def simulate_closed_loop(ocp, ocp_solver, integrator, x0, N_sim=50):
+def simulate_closed_loop(ocp, ocp_solver, integrator, x0, x_init_guess, N_sim=50,nMaxGuess: int = 5):
     
     nx = ocp.model.x.size()[0]  # Should be 6
     nu = ocp.model.u.size()[0]  # Should be 1
@@ -112,38 +113,67 @@ def simulate_closed_loop(ocp, ocp_solver, integrator, x0, N_sim=50):
     # 初始状态
     simX = np.zeros((N_sim+1, nx))
     simU = np.zeros((N_sim, nu))
+    simCost = np.zeros((N_sim, 1))
     simX[0, :] = x0  # 初始化状态为传入的 x0
-    # clear_solver_state(ocp_solver, config.Horizon)
+    success = True
     # 闭环仿真
-    u_guess, x_guess = config.GenerateRandomInitialGuess()
-    u0 = 1e3 * np.random.rand(config.Horizon)
-    # 初次initial guess设置
-    for j in range(0,config.Horizon,20):
-        # ocp_solver.set(j, "u", -u0[j])
-        ocp_solver.set(j, "x", x_guess)
-    ocp_solver.set(0, "x", x0)
-    # print("X_guess", x_guess)
     for i in range(N_sim):
-        u_opt = ocp_solver.solve_for_x0(x0_bar = simX[i, :])
-        #设置下一个sim的初始猜测
-        # print(i)
-        # print(ocp_solver.get_cost())
-        u_guess, x_guess = get_guess_from_solver_result(ocp_solver, config.Horizon)
-        clear_solver_state(ocp_solver, config.Horizon) #按道理不太需要
-        
-        for j in range(config.Horizon):
-            ocp_solver.set(j, "u", u_guess[j])
-            ocp_solver.set(j, "x", x_guess[:, j])
-        ocp_solver.set(config.Horizon, "x", x_guess[:, -1])
+        retries = 0
+        while retries < nMaxGuess:
+            try:
+                u_opt = ocp_solver.solve_for_x0(x0_bar = simX[i, :])
+                #设置下一个sim的初始猜测
+                u_guess, x_guess = get_guess_from_solver_result(ocp_solver, config.Horizon)
+                clear_solver_state(ocp_solver, config.Horizon) #按道理不太需要
+                
+                for j in range(config.Horizon):
+                    ocp_solver.set(j, "u", u_guess[j])
+                    ocp_solver.set(j, "x", x_guess[:, j])
+                ocp_solver.set(config.Horizon, "x", x_guess[:, -1])
 
-        simU[i, :] = u_opt
-        # print("u_opt", u_opt)
-        # 更新状态
-        x_next = integrator.simulate(x=simX[i, :], u=u_opt)
-        simX[i+1, :] = x_next
-        # print("i:",i,"x:",x_next)
+                simU[i, :] = u_opt
+                # print("u_opt", u_opt)
+                # 更新状态
+                x_next = integrator.simulate(x=simX[i, :], u=u_opt)
+                simX[i+1, :] = x_next
+                simCost[i,:] = ocp_solver.get_cost()
+                # print("i:",i,"x:",x_next)
+                break
+            except Exception as e:
+                success = False
+                print(f"Error in MPC_solve: {str(e)}, change guess")
+                print("current step:", i, ", retries=", retries)
+                time.sleep(2)
+                if i == 0 :
+                    clear_solver_state(ocp_solver, config.Horizon)
+                    for j in range(0,config.Horizon,20):
+                        ocp_solver.set(j, "x", x_init_guess)
+                    ocp_solver.set(0, "x", x0)
+                else:
+                    print(u_guess.shape)
+                    u_range = np.max(u_guess) - np.min(u_guess)
+                    x_range = np.max(x_guess) - np.min(x_guess)
+                    u_noise_range = 0.1 * u_range
+                    x_noise_range = 0.1 * x_range
+                    u_increment = np.random.uniform(-u_noise_range, u_noise_range, size=u_guess.shape)
+                    x_increment = np.random.uniform(-x_noise_range, x_noise_range, size=x_guess.shape)
+                    u_guess = u_guess + u_increment
+                    x_guess = x_guess + x_increment
+                    for j in range(config.Horizon):
+                        ocp_solver.set(j, "u", u_guess[j])
+                        ocp_solver.set(j, "x", x_guess[:, j])
+                    ocp_solver.set(config.Horizon, "x", x_guess[:, -1])
+            
+            retries += 1
+            if retries == nMaxGuess-1:
+                print("set initial guess = 2pi")
+                for j in range(0,config.Horizon,20):
+                        ocp_solver.set(j, "x", np.array([0,0,0,0,0,0]))
+                ocp_solver.set(0, "x", np.array([0,0,0,0,0,0]))
+            
+    
 
     # print("x_final:", simX[-1,:])
-    
+    clear_solver_state(ocp_solver, config.Horizon)
     t = np.linspace(0, N_sim*config.Ts, N_sim+1)
-    return t, simX, simU
+    return t, simX, simU, simCost, success
