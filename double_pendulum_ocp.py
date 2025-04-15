@@ -105,7 +105,7 @@ def create_ocp_solver(x0):
     return ocp, acados_solver, acados_integrator
 
 
-def simulate_closed_loop(ocp, ocp_solver, integrator, x0, x_init_guess, N_sim=50,nMaxGuess: int = 5):
+def simulate_closed_loop(ocp, ocp_solver, integrator, x0, x_init_guess, N_sim=50,nMaxGuess: int = 1):
     
     nx = ocp.model.x.size()[0]  # Should be 6
     nu = ocp.model.u.size()[0]  # Should be 1
@@ -150,7 +150,6 @@ def simulate_closed_loop(ocp, ocp_solver, integrator, x0, x_init_guess, N_sim=50
                         ocp_solver.set(j, "x", x_init_guess)
                     ocp_solver.set(0, "x", x0)
                 else:
-                    print(u_guess.shape)
                     u_range = np.max(u_guess) - np.min(u_guess)
                     x_range = np.max(x_guess) - np.min(x_guess)
                     u_noise_range = 0.1 * u_range
@@ -170,6 +169,9 @@ def simulate_closed_loop(ocp, ocp_solver, integrator, x0, x_init_guess, N_sim=50
                 for j in range(0,config.Horizon,20):
                         ocp_solver.set(j, "x", np.array([0,0,0,0,0,0]))
                 ocp_solver.set(0, "x", np.array([0,0,0,0,0,0]))
+        if success == False:
+            print("MPC solve failed after max retries")
+            break
             
     
 

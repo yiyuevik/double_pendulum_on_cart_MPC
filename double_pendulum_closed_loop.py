@@ -17,11 +17,11 @@ from scipy.io import savemat
 def main():
 
     # 1) 生成初始状态样本
-    x0 = np.array([0, 0, np.pi, 0, np.pi, 0])
+    x0 = np.array([-3, 0, np.pi, 0, 2.98, 0])
     # 2) 闭环仿真
     ## 参数设置
     N_sim = 120  # 模拟步数
-    sim_round = 626
+    sim_round = 626 
     all_simX = np.zeros((N_sim+1,config.Num_State,sim_round))
     all_simU = np.zeros((N_sim,1,sim_round))
     all_time = np.zeros((sim_round))
@@ -35,6 +35,7 @@ def main():
     #   'simX_list'        : 当前组内所有 simX 数组（例如，list中每个元素形状为 (N_sim+1, num_state)）
     #   'simU_list'        : 当前组内所有 simU 数组
     #   'x_init_guess_list': 当前组内对应的初始猜测数组
+    #   'cost'            : 当前组内所有成本值
     groups = []
 
 
@@ -90,7 +91,7 @@ def main():
             # 5) 绘制曲线
             # plot_cartpole_trajectories(t, simX, simU)
             # 6) 动画
-            animate_cartpole(t, simX, interval=50)
+            # animate_cartpole(t, simX, interval=50)
         else:
             all_simX[:, :, i] = all_simX[:, :, 0]
             all_simU[:, :, i] = all_simU[:, :, 0]

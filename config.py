@@ -35,9 +35,9 @@ def GenerateRandomInitialGuess(sim_round = 0, min_random=-6000.0, max_random=600
     其中 u_ini_guess 在 [min_random, max_random] 里均匀随机取,范围我不清楚，问！
     """
     u_ini_guess = np.random.uniform(min_random, max_random, 1)[0]
-    mode = False
+    mode = True
     if mode == False :
-        x_ini_guess = np.array([0.0, 0.0, 0.785398163397448, 0.0, 4.974188368183839, 0.0])
+        x_ini_guess = np.array([0.0, 0.0, 2*np.pi, 0.0, 2*np.pi, 0.0])
         # if u_ini_guess >= 0:
         #     x_ini_guess =  np.zeros(6)
         #     x_ini_guess[2] = 2 * np.pi
